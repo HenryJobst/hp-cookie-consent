@@ -81,6 +81,24 @@ class HPCC_Activator {
                     'enabled'     => false,
                 ],
             ],
+            'hpcc_cookie_details'     => [
+                'necessary'  => [
+                    ['name' => 'hpcc_consent',    'provider' => 'Eigene', 'purpose' => 'Speichert die Cookie-Einwilligung', 'duration' => '1 Jahr'],
+                    ['name' => 'hpcc_consent_id', 'provider' => 'Eigene', 'purpose' => 'Eindeutige Consent-ID',            'duration' => '1 Jahr'],
+                ],
+                'statistics' => [
+                    ['name' => '_ga / _gid',      'provider' => 'Google', 'purpose' => 'Google Analytics Tracking', 'duration' => '2 Jahre / 24h'],
+                ],
+                'marketing'  => [
+                    ['name' => '_fbp',             'provider' => 'Facebook', 'purpose' => 'Facebook Pixel Tracking', 'duration' => '3 Monate'],
+                ],
+                'external'   => [
+                    ['name' => 'VISITOR_INFO1_LIVE', 'provider' => 'YouTube', 'purpose' => 'YouTube Video-Player',  'duration' => '6 Monate'],
+                ],
+            ],
+            'hpcc_custom_rules'       => [],
+            'hpcc_reconsent_version'  => '1',
+            'hpcc_reconsent_days'     => 0,
         ];
 
         foreach ($defaults as $key => $value) {

@@ -98,6 +98,14 @@ class HPCC_Script_Blocker {
          * @param array $map Domain-Pattern => Kategorie
          */
         $this->domain_category_map = apply_filters('hpcc_domain_category_map', $this->domain_category_map);
+
+        // Custom Rules aus den Admin-Einstellungen laden
+        $custom_rules = get_option('hpcc_custom_rules', []);
+        foreach ($custom_rules as $rule) {
+            if (!empty($rule['domain']) && !empty($rule['category'])) {
+                $this->domain_category_map[$rule['domain']] = $rule['category'];
+            }
+        }
     }
 
     /**
@@ -139,9 +147,17 @@ class HPCC_Script_Blocker {
             return false;
         }
 
+        // Support both formats:
+        // legacy: {"statistics":true,...}
+        // current: {"categories":{"statistics":true,...},"timestamp":...,"version":"..."}
+        $categories_consent = $consent;
+        if (isset($consent['categories']) && is_array($consent['categories'])) {
+            $categories_consent = $consent['categories'];
+        }
+
         $categories = get_option('hpcc_categories', []);
         foreach ($categories as $key => $cat) {
-            if (empty($cat['required']) && empty($consent[$key])) {
+            if (empty($cat['required']) && empty($categories_consent[$key])) {
                 return false;
             }
         }

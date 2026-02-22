@@ -49,3 +49,20 @@
 .hpcc-category-card .form-table td {
     padding: 10px 0;
 }
+
+.hpcc-cookie-table input[type="text"] {
+    width: 100%;
+    min-width: 80px;
+}
+
+.hpcc-new-cookie-row input {
+    opacity: 0.6;
+}
+
+.hpcc-new-cookie-row input:focus {
+    opacity: 1;
+}
+
+#hpcc-custom-rules input[type="text"] {
+    width: 100%;
+}

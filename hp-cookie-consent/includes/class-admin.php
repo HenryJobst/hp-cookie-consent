@@ -78,6 +78,53 @@ class HPCC_Admin {
             },
         ]);
 
+        register_setting('hpcc_settings', 'hpcc_reconsent_days', [
+            'sanitize_callback' => function ($val): int {
+                return max(0, (int) $val);
+            },
+        ]);
+
+        register_setting('hpcc_settings', 'hpcc_reconsent_version', [
+            'sanitize_callback' => 'sanitize_text_field',
+        ]);
+
+        register_setting('hpcc_settings', 'hpcc_cookie_details', [
+            'sanitize_callback' => function ($input): array {
+                if (!is_array($input)) return [];
+                $sanitized = [];
+                foreach ($input as $cat => $cookies) {
+                    $cat = sanitize_key($cat);
+                    $sanitized[$cat] = [];
+                    if (!is_array($cookies)) continue;
+                    foreach ($cookies as $cookie) {
+                        if (empty($cookie['name'])) continue;
+                        $sanitized[$cat][] = [
+                            'name'     => sanitize_text_field($cookie['name'] ?? ''),
+                            'provider' => sanitize_text_field($cookie['provider'] ?? ''),
+                            'purpose'  => sanitize_text_field($cookie['purpose'] ?? ''),
+                            'duration' => sanitize_text_field($cookie['duration'] ?? ''),
+                        ];
+                    }
+                }
+                return $sanitized;
+            },
+        ]);
+
+        register_setting('hpcc_settings', 'hpcc_custom_rules', [
+            'sanitize_callback' => function ($input): array {
+                if (!is_array($input)) return [];
+                $sanitized = [];
+                foreach ($input as $rule) {
+                    if (empty($rule['domain'])) continue;
+                    $sanitized[] = [
+                        'domain'   => sanitize_text_field($rule['domain'] ?? ''),
+                        'category' => sanitize_key($rule['category'] ?? 'statistics'),
+                    ];
+                }
+                return $sanitized;
+            },
+        ]);
+
         register_setting('hpcc_settings', 'hpcc_categories', [
             'sanitize_callback' => [$this, 'sanitize_categories'],
         ]);
@@ -199,6 +246,28 @@ class HPCC_Admin {
                                     </label>
                                 </td>
                             </tr>
+                            <tr>
+                                <th scope="row">
+                                    <label for="hpcc_reconsent_days"><?php esc_html_e('Re-Consent nach (Tage)', 'hp-cookie-consent'); ?></label>
+                                </th>
+                                <td>
+                                    <input type="number" id="hpcc_reconsent_days" name="hpcc_reconsent_days"
+                                           value="<?php echo esc_attr((string) get_option('hpcc_reconsent_days', '0')); ?>"
+                                           min="0" max="730" class="small-text" />
+                                    <p class="description"><?php esc_html_e('Banner nach X Tagen erneut anzeigen (0 = deaktiviert). Nützlich bei Änderungen der Cookie-Richtlinie.', 'hp-cookie-consent'); ?></p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th scope="row">
+                                    <label for="hpcc_reconsent_version"><?php esc_html_e('Consent-Version', 'hp-cookie-consent'); ?></label>
+                                </th>
+                                <td>
+                                    <input type="text" id="hpcc_reconsent_version" name="hpcc_reconsent_version"
+                                           value="<?php echo esc_attr(get_option('hpcc_reconsent_version', '1')); ?>"
+                                           class="small-text" />
+                                    <p class="description"><?php esc_html_e('Erhöhen Sie diese Nummer, um alle Besucher erneut um Consent zu bitten.', 'hp-cookie-consent'); ?></p>
+                                </td>
+                            </tr>
                         </table>
                     </div>
 
@@ -254,6 +323,19 @@ class HPCC_Admin {
                                            class="hpcc-color-picker" />
                                 </td>
                             </tr>
+                            <tr>
+                                <th scope="row"><?php esc_html_e('Vorschau', 'hp-cookie-consent'); ?></th>
+                                <td>
+                                    <div id="hpcc-admin-preview" style="position:relative;border:1px solid #c3c4c7;border-radius:8px;padding:20px;max-width:500px;font-family:sans-serif;font-size:14px;">
+                                        <h4 style="margin:0 0 8px 0;" id="hpcc-preview-title"><?php echo esc_html(get_option('hpcc_banner_title', '')); ?></h4>
+                                        <p style="margin:0 0 12px;opacity:0.85;font-size:13px;" id="hpcc-preview-text"><?php echo esc_html(function_exists('mb_substr') ? mb_substr((string) get_option('hpcc_banner_text', ''), 0, 80) : substr((string) get_option('hpcc_banner_text', ''), 0, 80)); ?>…</p>
+                                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                                            <span id="hpcc-preview-accept" style="padding:6px 14px;border-radius:4px;color:#fff;font-size:12px;font-weight:600;"><?php esc_html_e('Alle akzeptieren', 'hp-cookie-consent'); ?></span>
+                                            <span id="hpcc-preview-reject" style="padding:6px 14px;border-radius:4px;font-size:12px;font-weight:600;border:2px solid currentColor;opacity:0.8;"><?php esc_html_e('Nur notwendige', 'hp-cookie-consent'); ?></span>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
                         </table>
                     </div>
 
@@ -304,6 +386,44 @@ class HPCC_Admin {
                                 </table>
                             </div>
                         <?php endforeach; ?>
+
+                        <h3 style="margin-top:30px;"><?php esc_html_e('Cookie-Details pro Kategorie', 'hp-cookie-consent'); ?></h3>
+                        <p class="description"><?php esc_html_e('Diese Cookies werden den Besuchern in einer aufklappbaren Tabelle pro Kategorie angezeigt.', 'hp-cookie-consent'); ?></p>
+                        <?php
+                        $cookie_details = get_option('hpcc_cookie_details', []);
+                        foreach ($categories as $cat_key => $cat) :
+                            $cat_cookies = $cookie_details[$cat_key] ?? [];
+                        ?>
+                            <div class="hpcc-category-card">
+                                <h3><?php echo esc_html($cat['label']); ?> — <?php esc_html_e('Cookies', 'hp-cookie-consent'); ?></h3>
+                                <table class="widefat hpcc-cookie-table" data-category="<?php echo esc_attr($cat_key); ?>">
+                                    <thead>
+                                        <tr>
+                                            <th><?php esc_html_e('Name', 'hp-cookie-consent'); ?></th>
+                                            <th><?php esc_html_e('Anbieter', 'hp-cookie-consent'); ?></th>
+                                            <th><?php esc_html_e('Zweck', 'hp-cookie-consent'); ?></th>
+                                            <th><?php esc_html_e('Laufzeit', 'hp-cookie-consent'); ?></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($cat_cookies as $ci => $cookie) : ?>
+                                            <tr>
+                                                <td><input type="text" name="hpcc_cookie_details[<?php echo esc_attr($cat_key); ?>][<?php echo (int) $ci; ?>][name]" value="<?php echo esc_attr($cookie['name']); ?>" class="regular-text" /></td>
+                                                <td><input type="text" name="hpcc_cookie_details[<?php echo esc_attr($cat_key); ?>][<?php echo (int) $ci; ?>][provider]" value="<?php echo esc_attr($cookie['provider']); ?>" class="regular-text" /></td>
+                                                <td><input type="text" name="hpcc_cookie_details[<?php echo esc_attr($cat_key); ?>][<?php echo (int) $ci; ?>][purpose]" value="<?php echo esc_attr($cookie['purpose']); ?>" class="regular-text" /></td>
+                                                <td><input type="text" name="hpcc_cookie_details[<?php echo esc_attr($cat_key); ?>][<?php echo (int) $ci; ?>][duration]" value="<?php echo esc_attr($cookie['duration']); ?>" style="width:120px;" /></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                        <tr class="hpcc-new-cookie-row">
+                                            <td><input type="text" name="hpcc_cookie_details[<?php echo esc_attr($cat_key); ?>][new][name]" value="" placeholder="<?php esc_attr_e('Cookie-Name', 'hp-cookie-consent'); ?>" class="regular-text" /></td>
+                                            <td><input type="text" name="hpcc_cookie_details[<?php echo esc_attr($cat_key); ?>][new][provider]" value="" placeholder="<?php esc_attr_e('Anbieter', 'hp-cookie-consent'); ?>" class="regular-text" /></td>
+                                            <td><input type="text" name="hpcc_cookie_details[<?php echo esc_attr($cat_key); ?>][new][purpose]" value="" placeholder="<?php esc_attr_e('Zweck', 'hp-cookie-consent'); ?>" class="regular-text" /></td>
+                                            <td><input type="text" name="hpcc_cookie_details[<?php echo esc_attr($cat_key); ?>][new][duration]" value="" placeholder="<?php esc_attr_e('Laufzeit', 'hp-cookie-consent'); ?>" style="width:120px;" /></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        <?php endforeach; ?>
                     </div>
 
                     <!-- Integration -->
@@ -329,6 +449,45 @@ class HPCC_Admin {
                                            value="<?php echo esc_attr(get_option('hpcc_ga_id', '')); ?>"
                                            class="regular-text" placeholder="G-XXXXXXXXXX" />
                                     <p class="description"><?php esc_html_e('GA4 wird erst geladen, wenn der Nutzer der Statistik-Kategorie zugestimmt hat.', 'hp-cookie-consent'); ?></p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th scope="row"><?php esc_html_e('Eigene Skript-Regeln', 'hp-cookie-consent'); ?></th>
+                                <td>
+                                    <p class="description" style="margin-bottom:12px;"><?php esc_html_e('Eigene Domain-zu-Kategorie-Zuordnungen für den Script-Blocker.', 'hp-cookie-consent'); ?></p>
+                                    <?php $custom_rules = get_option('hpcc_custom_rules', []); ?>
+                                    <table class="widefat" id="hpcc-custom-rules" style="max-width:600px;">
+                                        <thead>
+                                            <tr>
+                                                <th><?php esc_html_e('Domain / URL-Teil', 'hp-cookie-consent'); ?></th>
+                                                <th><?php esc_html_e('Kategorie', 'hp-cookie-consent'); ?></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach ($custom_rules as $ri => $rule) : ?>
+                                                <tr>
+                                                    <td><input type="text" name="hpcc_custom_rules[<?php echo (int) $ri; ?>][domain]" value="<?php echo esc_attr($rule['domain']); ?>" class="regular-text" /></td>
+                                                    <td>
+                                                        <select name="hpcc_custom_rules[<?php echo (int) $ri; ?>][category]">
+                                                            <?php foreach ($categories as $ck => $cv) : ?>
+                                                                <option value="<?php echo esc_attr($ck); ?>" <?php selected($rule['category'], $ck); ?>><?php echo esc_html($cv['label']); ?></option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                            <tr>
+                                                <td><input type="text" name="hpcc_custom_rules[new][domain]" value="" placeholder="beispiel.com" class="regular-text" /></td>
+                                                <td>
+                                                    <select name="hpcc_custom_rules[new][category]">
+                                                        <?php foreach ($categories as $ck => $cv) : ?>
+                                                            <option value="<?php echo esc_attr($ck); ?>"><?php echo esc_html($cv['label']); ?></option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
                                 </td>
                             </tr>
                         </table>

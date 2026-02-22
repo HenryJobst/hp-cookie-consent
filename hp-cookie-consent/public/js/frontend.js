@@ -44,15 +44,62 @@
         var raw = getCookie(COOKIE_NAME);
         if (!raw) return null;
         try {
-            return JSON.parse(raw);
+            var data = JSON.parse(raw);
+            // Support legacy flat format (just categories object)
+            if (data && !data.categories && typeof data.necessary !== 'undefined') {
+                return data;
+            }
+            return data && data.categories ? data.categories : null;
         } catch (e) {
             return null;
         }
     }
 
+    function getConsentData() {
+        var raw = getCookie(COOKIE_NAME);
+        if (!raw) return null;
+        try {
+            var data = JSON.parse(raw);
+            // Legacy format
+            if (data && !data.categories && typeof data.necessary !== 'undefined') {
+                return { categories: data, timestamp: 0, version: '0' };
+            }
+            return data;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function needsReconsent(consentData) {
+        if (!consentData) return true;
+
+        // Check version
+        var currentVersion = config.reconsentVersion || '1';
+        if (consentData.version && consentData.version !== currentVersion) {
+            return true;
+        }
+
+        // Check time-based re-consent
+        var days = config.reconsentDays || 0;
+        if (days > 0 && consentData.timestamp) {
+            var elapsed = Date.now() - consentData.timestamp;
+            var maxAge = days * 86400000;
+            if (elapsed > maxAge) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     function saveConsent(categories) {
         var previous = getConsent() || {};
-        setCookie(COOKIE_NAME, JSON.stringify(categories), config.cookieLifetime);
+        var consentData = {
+            categories: categories,
+            timestamp: Date.now(),
+            version: config.reconsentVersion || '1'
+        };
+        setCookie(COOKIE_NAME, JSON.stringify(consentData), config.cookieLifetime);
         deleteRevokedCookies(previous, categories);
         logConsent(categories);
         fireConsentEvent(categories);
@@ -263,10 +310,24 @@
             var disabled = cat.required ? ' disabled' : '';
             var requiredLabel = cat.required ? ' <span class="hpcc-category__required">' + escapeHtml(config.i18n.required) + '</span>' : '';
 
+            var cookieTable = '';
+            if (cat.cookies && cat.cookies.length > 0) {
+                cookieTable = '<div class="hpcc-cookie-details">' +
+                    '<button class="hpcc-cookie-details__toggle" type="button">▸ ' + escapeHtml(config.i18n.cookieDetails || 'Cookie-Details') + ' (' + cat.cookies.length + ')</button>' +
+                    '<table class="hpcc-cookie-details__table" style="display:none;">' +
+                    '<tr><th>' + escapeHtml(config.i18n.cookieName || 'Name') + '</th><th>' + escapeHtml(config.i18n.cookieProvider || 'Anbieter') + '</th><th>' + escapeHtml(config.i18n.cookiePurpose || 'Zweck') + '</th><th>' + escapeHtml(config.i18n.cookieDuration || 'Laufzeit') + '</th></tr>';
+                for (var ci = 0; ci < cat.cookies.length; ci++) {
+                    var c = cat.cookies[ci];
+                    cookieTable += '<tr><td>' + escapeHtml(c.name) + '</td><td>' + escapeHtml(c.provider) + '</td><td>' + escapeHtml(c.purpose) + '</td><td>' + escapeHtml(c.duration) + '</td></tr>';
+                }
+                cookieTable += '</table></div>';
+            }
+
             catHtml += '<div class="hpcc-category">' +
                 '<div class="hpcc-category__info">' +
                 '<div class="hpcc-category__label">' + escapeHtml(cat.label) + requiredLabel + '</div>' +
                 '<div class="hpcc-category__desc">' + escapeHtml(cat.description) + '</div>' +
+                cookieTable +
                 '</div>' +
                 '<label class="hpcc-toggle">' +
                 '<input type="checkbox" data-category="' + escapeHtml(key) + '"' + checked + disabled + '>' +
@@ -330,6 +391,34 @@
         requestAnimationFrame(function () {
             banner.classList.add('hpcc-visible');
             if (overlay) overlay.classList.add('hpcc-visible');
+            trapFocus(banner);
+        });
+    }
+
+    function trapFocus(container) {
+        if (!container) return;
+        var focusable = container.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        if (focusable.length === 0) return;
+        var first = focusable[0];
+        var last = focusable[focusable.length - 1];
+        first.focus();
+
+        container.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                return; // Don't close on escape - user must make a choice
+            }
+            if (e.key !== 'Tab') return;
+            if (e.shiftKey) {
+                if (document.activeElement === first) {
+                    e.preventDefault();
+                    last.focus();
+                }
+            } else {
+                if (document.activeElement === last) {
+                    e.preventDefault();
+                    first.focus();
+                }
+            }
         });
     }
 
@@ -424,6 +513,13 @@
                     current[iframeCat] = true;
                     saveConsent(current);
                 }
+            } else if (target.classList && target.classList.contains('hpcc-cookie-details__toggle')) {
+                var table = target.nextElementSibling;
+                if (table) {
+                    var isHidden = table.style.display === 'none';
+                    table.style.display = isHidden ? 'table' : 'none';
+                    target.textContent = (isHidden ? '▾ ' : '▸ ') + target.textContent.substr(2);
+                }
             }
         });
     }
@@ -431,17 +527,16 @@
     /* ── Init ── */
 
     function init() {
-        var existing = getConsent();
+        var consentData = getConsentData();
+        var existing = consentData ? consentData.categories || getConsent() : null;
 
-        if (existing) {
-            // Consent already given - show revoke button, load scripts, unblock
+        if (existing && !needsReconsent(consentData)) {
             var revokeBtn = document.getElementById('hpcc-revoke-btn');
             if (revokeBtn) revokeBtn.style.display = 'flex';
             loadConditionalScripts(existing);
             unblockScripts(existing);
             unblockIframes(existing);
         } else {
-            // No consent yet - show banner
             buildBanner();
             showBanner();
         }

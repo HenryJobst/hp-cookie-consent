@@ -40,6 +40,7 @@ class HPCC_Frontend {
         );
 
         $categories = get_option('hpcc_categories', []);
+        $cookie_details = get_option('hpcc_cookie_details', []);
         $cat_data = [];
         foreach ($categories as $key => $cat) {
             $cat_data[$key] = [
@@ -47,6 +48,7 @@ class HPCC_Frontend {
                 'description' => $cat['description'],
                 'required'    => (bool) $cat['required'],
                 'enabled'     => (bool) $cat['enabled'],
+                'cookies'     => $cookie_details[$key] ?? [],
             ];
         }
 
@@ -69,6 +71,8 @@ class HPCC_Frontend {
             'imprintUrl'     => $imprint_page_id ? get_permalink((int) $imprint_page_id) : '',
             'gtmId'          => get_option('hpcc_gtm_id', ''),
             'gaId'           => get_option('hpcc_ga_id', ''),
+            'reconsentDays'  => (int) get_option('hpcc_reconsent_days', 0),
+            'reconsentVersion' => get_option('hpcc_reconsent_version', '1'),
             'i18n'           => [
                 'acceptAll'    => __('Alle akzeptieren', 'hp-cookie-consent'),
                 'acceptSelected' => __('Auswahl bestätigen', 'hp-cookie-consent'),
@@ -79,6 +83,11 @@ class HPCC_Frontend {
                 'required'     => __('(erforderlich)', 'hp-cookie-consent'),
                 'save'         => __('Speichern', 'hp-cookie-consent'),
                 'back'         => __('Zurück', 'hp-cookie-consent'),
+                'cookieDetails'  => __('Cookie-Details', 'hp-cookie-consent'),
+                'cookieName'     => __('Name', 'hp-cookie-consent'),
+                'cookieProvider' => __('Anbieter', 'hp-cookie-consent'),
+                'cookiePurpose'  => __('Zweck', 'hp-cookie-consent'),
+                'cookieDuration' => __('Laufzeit', 'hp-cookie-consent'),
             ],
         ]);
     }
@@ -109,12 +118,13 @@ class HPCC_Frontend {
             if (!consent) return;
 
             try {
-                var categories = JSON.parse(consent);
+                var data = JSON.parse(consent);
+                var categories = data.categories ? data.categories : data;
             } catch(e) {
                 return;
             }
 
-            if (!categories.statistics) return;
+            if (!categories || !categories.statistics) return;
 
             <?php if (!empty($gtm_id)) : ?>
             (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':

@@ -324,6 +324,48 @@
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
+/* Cookie Details Table */
+.hpcc-cookie-details {
+    margin-top: 6px;
+}
+
+.hpcc-cookie-details__toggle {
+    background: none;
+    border: none;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 2px 0;
+    opacity: 0.6;
+    transition: opacity 0.2s;
+    color: inherit;
+}
+
+.hpcc-cookie-details__toggle:hover {
+    opacity: 1;
+}
+
+.hpcc-cookie-details__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    margin-top: 6px;
+}
+
+.hpcc-cookie-details__table th,
+.hpcc-cookie-details__table td {
+    padding: 4px 8px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    text-align: left;
+}
+
+.hpcc-cookie-details__table th {
+    font-weight: 600;
+    opacity: 0.7;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
     .hpcc-banner--bar {

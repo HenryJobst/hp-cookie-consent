@@ -3,7 +3,7 @@
  * Plugin Name:       HP Cookie Consent
  * Plugin URI:        https://example.com/hp-cookie-consent
  * Description:       Einfaches, DSGVO- und CCPA-konformes Cookie-Consent-Plugin mit granularer Kategorisierung, anpassbarem Banner und Consent-Logging.
- * Version:           1.2.0
+ * Version:           1.3.0
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Author:            Henry Privat
@@ -20,7 +20,7 @@ declare(strict_types=1);
 
 defined('ABSPATH') || exit;
 
-define('HPCC_VERSION', '1.2.0');
+define('HPCC_VERSION', '1.3.0');
 define('HPCC_FILE', __FILE__);
 define('HPCC_PATH', plugin_dir_path(__FILE__));
 define('HPCC_URL', plugin_dir_url(__FILE__));

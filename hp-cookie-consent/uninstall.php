@@ -23,6 +23,10 @@ $options = [
     'hpcc_ga_id',
     'hpcc_categories',
     'hpcc_hide_for_admins',
+    'hpcc_cookie_details',
+    'hpcc_custom_rules',
+    'hpcc_reconsent_version',
+    'hpcc_reconsent_days',
     'hpcc_db_version',
 ];
 
