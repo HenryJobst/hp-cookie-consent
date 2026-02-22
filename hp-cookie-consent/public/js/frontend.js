@@ -55,6 +55,8 @@
         logConsent(categories);
         fireConsentEvent(categories);
         loadConditionalScripts(categories);
+        unblockScripts(categories);
+        unblockIframes(categories);
     }
 
     function logConsent(categories) {
@@ -107,6 +109,53 @@
             function gtag() { window.dataLayer.push(arguments); }
             gtag('js', new Date());
             gtag('config', config.gaId, { anonymize_ip: true });
+        }
+    }
+
+    /* ── Script/iframe Unblocking ── */
+
+    function unblockScripts(categories) {
+        var blocked = document.querySelectorAll('script[type="text/plain"][data-hpcc-category]');
+        for (var i = 0; i < blocked.length; i++) {
+            var el = blocked[i];
+            var cat = el.getAttribute('data-hpcc-category');
+            if (!categories[cat]) continue;
+
+            var newScript = document.createElement('script');
+
+            // Copy attributes except type and data-hpcc-*
+            for (var j = 0; j < el.attributes.length; j++) {
+                var attr = el.attributes[j];
+                if (attr.name === 'type' || attr.name.indexOf('data-hpcc-') === 0) continue;
+                newScript.setAttribute(attr.name, attr.value);
+            }
+
+            // Restore src from data-hpcc-src
+            var originalSrc = el.getAttribute('data-hpcc-src');
+            if (originalSrc) {
+                newScript.src = originalSrc;
+                newScript.async = true;
+            } else {
+                newScript.textContent = el.textContent;
+            }
+
+            el.parentNode.replaceChild(newScript, el);
+        }
+    }
+
+    function unblockIframes(categories) {
+        var placeholders = document.querySelectorAll('.hpcc-iframe-placeholder[data-hpcc-category]');
+        for (var i = 0; i < placeholders.length; i++) {
+            var el = placeholders[i];
+            var cat = el.getAttribute('data-hpcc-category');
+            if (!categories[cat]) continue;
+
+            var originalHtml = el.getAttribute('data-hpcc-iframe');
+            if (!originalHtml) continue;
+
+            var wrapper = document.createElement('div');
+            wrapper.innerHTML = originalHtml;
+            el.parentNode.replaceChild(wrapper.firstChild, el);
         }
     }
 
@@ -302,6 +351,13 @@
                 buildBanner();
                 showBanner();
                 showSettings();
+            } else if (target.classList && target.classList.contains('hpcc-iframe-accept-btn')) {
+                var iframeCat = target.getAttribute('data-hpcc-category');
+                if (iframeCat) {
+                    var current = getConsent() || {};
+                    current[iframeCat] = true;
+                    saveConsent(current);
+                }
             }
         });
     }
@@ -312,10 +368,12 @@
         var existing = getConsent();
 
         if (existing) {
-            // Consent already given - show revoke button, load scripts
+            // Consent already given - show revoke button, load scripts, unblock
             var revokeBtn = document.getElementById('hpcc-revoke-btn');
             if (revokeBtn) revokeBtn.style.display = 'flex';
             loadConditionalScripts(existing);
+            unblockScripts(existing);
+            unblockIframes(existing);
         } else {
             // No consent yet - show banner
             buildBanner();
