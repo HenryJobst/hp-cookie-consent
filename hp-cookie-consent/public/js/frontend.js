@@ -51,12 +51,78 @@
     }
 
     function saveConsent(categories) {
+        var previous = getConsent() || {};
         setCookie(COOKIE_NAME, JSON.stringify(categories), config.cookieLifetime);
+        deleteRevokedCookies(previous, categories);
         logConsent(categories);
         fireConsentEvent(categories);
         loadConditionalScripts(categories);
         unblockScripts(categories);
         unblockIframes(categories);
+    }
+
+    /* ── Cookie-Löschung bei Widerruf ── */
+
+    var CATEGORY_COOKIES = {
+        statistics: [
+            '_ga', '_ga_*', '_gid', '_gat', '_gat_*',
+            '__utma', '__utmb', '__utmc', '__utmz', '__utmt',
+            '_hjid', '_hjSession*', '_hjSessionUser*',
+            '_clck', '_clsk', 'CLID',
+            'mtm_*', '_pk_*',
+            'plausible_*'
+        ],
+        marketing: [
+            '_fbp', '_fbc', 'fr',
+            '_gcl_*', 'IDE', 'DSID', 'test_cookie',
+            'li_sugr', 'bcookie', 'lidc', 'UserMatchHistory',
+            '_ttp', '_tt_*',
+            '_pin_unauth',
+            '__hssc', '__hssrc', '__hstc', 'hubspotutk'
+        ],
+        external: [
+            'VISITOR_INFO1_LIVE', 'YSC', 'CONSENT', 'LOGIN_INFO',
+            'vuid'
+        ]
+    };
+
+    function deleteRevokedCookies(previous, current) {
+        var keys = Object.keys(CATEGORY_COOKIES);
+        for (var i = 0; i < keys.length; i++) {
+            var cat = keys[i];
+            if (previous[cat] && !current[cat]) {
+                var patterns = CATEGORY_COOKIES[cat];
+                for (var j = 0; j < patterns.length; j++) {
+                    removeCookiesByPattern(patterns[j]);
+                }
+            }
+        }
+    }
+
+    function removeCookiesByPattern(pattern) {
+        var allCookies = document.cookie.split(';');
+        for (var i = 0; i < allCookies.length; i++) {
+            var name = allCookies[i].split('=')[0].trim();
+            if (matchPattern(name, pattern)) {
+                // Delete for current path and root path
+                document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;';
+                document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.' + location.hostname + ';';
+                // Try parent domain (e.g. .example.com)
+                var parts = location.hostname.split('.');
+                if (parts.length > 2) {
+                    var parentDomain = '.' + parts.slice(-2).join('.');
+                    document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=' + parentDomain + ';';
+                }
+            }
+        }
+    }
+
+    function matchPattern(name, pattern) {
+        if (pattern.indexOf('*') === -1) {
+            return name === pattern;
+        }
+        var prefix = pattern.replace('*', '');
+        return name.indexOf(prefix) === 0;
     }
 
     function logConsent(categories) {

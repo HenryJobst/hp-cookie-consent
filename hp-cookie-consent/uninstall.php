@@ -22,6 +22,7 @@ $options = [
     'hpcc_gtm_id',
     'hpcc_ga_id',
     'hpcc_categories',
+    'hpcc_hide_for_admins',
     'hpcc_db_version',
 ];
 

@@ -12,9 +12,16 @@ defined('ABSPATH') || exit;
 class HPCC_Frontend {
 
     public function init(): void {
+        if ($this->should_hide_for_admin()) {
+            return;
+        }
         add_action('wp_enqueue_scripts', [$this, 'enqueue_assets']);
         add_action('wp_footer', [$this, 'render_banner']);
         add_action('wp_head', [$this, 'output_tracking_scripts'], 1);
+    }
+
+    private function should_hide_for_admin(): bool {
+        return get_option('hpcc_hide_for_admins', '') && current_user_can('manage_options');
     }
 
     public function enqueue_assets(): void {

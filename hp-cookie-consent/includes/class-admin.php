@@ -14,6 +14,7 @@ class HPCC_Admin {
     public function init(): void {
         add_action('admin_menu', [$this, 'add_menu']);
         add_action('admin_init', [$this, 'register_settings']);
+        add_action('admin_init', [$this, 'handle_csv_export']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_assets']);
     }
 
@@ -70,6 +71,12 @@ class HPCC_Admin {
                 'sanitize_callback' => 'sanitize_text_field',
             ]);
         }
+
+        register_setting('hpcc_settings', 'hpcc_hide_for_admins', [
+            'sanitize_callback' => function ($val): string {
+                return $val ? '1' : '';
+            },
+        ]);
 
         register_setting('hpcc_settings', 'hpcc_categories', [
             'sanitize_callback' => [$this, 'sanitize_categories'],
@@ -180,6 +187,16 @@ class HPCC_Admin {
                                     <input type="number" id="hpcc_cookie_lifetime" name="hpcc_cookie_lifetime"
                                            value="<?php echo esc_attr(get_option('hpcc_cookie_lifetime', '365')); ?>"
                                            min="1" max="730" class="small-text" />
+                                </td>
+                            </tr>
+                            <tr>
+                                <th scope="row"><?php esc_html_e('Admin-Ausblendung', 'hp-cookie-consent'); ?></th>
+                                <td>
+                                    <label>
+                                        <input type="checkbox" name="hpcc_hide_for_admins" value="1"
+                                               <?php checked(get_option('hpcc_hide_for_admins', '')); ?> />
+                                        <?php esc_html_e('Banner für eingeloggte Administratoren ausblenden', 'hp-cookie-consent'); ?>
+                                    </label>
                                 </td>
                             </tr>
                         </table>
@@ -355,11 +372,22 @@ class HPCC_Admin {
             )
         );
 
-        echo '<p>' . sprintf(
+        echo '<div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;">';
+        echo '<p style="margin:0;">' . sprintf(
             /* translators: %d: number of consent entries */
             esc_html__('Gesamt: %d Einwilligungen protokolliert', 'hp-cookie-consent'),
             $total
         ) . '</p>';
+
+        if ($total > 0) {
+            $export_url = wp_nonce_url(
+                add_query_arg(['page' => 'hpcc-settings', 'hpcc_export_csv' => '1'], admin_url('options-general.php')),
+                'hpcc_export_csv'
+            );
+            echo '<a href="' . esc_url($export_url) . '" class="button button-secondary">📥 ' .
+                 esc_html__('CSV exportieren', 'hp-cookie-consent') . '</a>';
+        }
+        echo '</div>';
 
         if (empty($logs)) {
             echo '<p>' . esc_html__('Noch keine Einträge vorhanden.', 'hp-cookie-consent') . '</p>';
@@ -396,5 +424,59 @@ class HPCC_Admin {
             ]));
             echo '</div></div>';
         }
+    }
+
+    public function handle_csv_export(): void {
+        if (empty($_GET['hpcc_export_csv'])) {
+            return;
+        }
+
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+
+        check_admin_referer('hpcc_export_csv');
+
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'hpcc_consent_log';
+
+        $logs = $wpdb->get_results("SELECT * FROM {$table_name} ORDER BY created_at DESC", ARRAY_A);
+
+        $filename = 'consent-log-' . gmdate('Y-m-d') . '.csv';
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename=' . $filename);
+        header('Pragma: no-cache');
+        header('Expires: 0');
+
+        $output = fopen('php://output', 'w');
+
+        // BOM for Excel UTF-8
+        fwrite($output, "\xEF\xBB\xBF");
+
+        fputcsv($output, [
+            __('ID', 'hp-cookie-consent'),
+            __('Consent-ID', 'hp-cookie-consent'),
+            __('IP-Hash', 'hp-cookie-consent'),
+            __('User-Agent-Hash', 'hp-cookie-consent'),
+            __('Kategorien', 'hp-cookie-consent'),
+            __('Consent erteilt', 'hp-cookie-consent'),
+            __('Datum', 'hp-cookie-consent'),
+        ], ';');
+
+        foreach ($logs as $row) {
+            fputcsv($output, [
+                $row['id'],
+                $row['consent_id'],
+                $row['ip_hash'],
+                $row['user_agent_hash'],
+                $row['categories'],
+                $row['consent_given'] ? __('Ja', 'hp-cookie-consent') : __('Nein', 'hp-cookie-consent'),
+                $row['created_at'],
+            ], ';');
+        }
+
+        fclose($output);
+        exit;
     }
 }
