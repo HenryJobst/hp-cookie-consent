@@ -6,10 +6,9 @@
  * Version:           1.3.0
  * Requires at least: 6.0
  * Requires PHP:      8.0
- * Author:            Henry Privat
- * Author URI:        https://example.com
- * License:           GPL v2 or later
- * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+ * Author:            Henry Jobst
+ * License:           MIT
+ * License URI:       https://opensource.org/licenses/MIT
  * Text Domain:       hp-cookie-consent
  * Domain Path:       /languages
  *

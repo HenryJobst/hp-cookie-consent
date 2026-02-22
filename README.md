@@ -1,197 +1,217 @@
 # HP Cookie Consent
 
-Einfaches, leichtgewichtiges WordPress-Plugin für DSGVO- und CCPA-konforme Cookie-Einwilligung – ohne Shareware-Beschränkungen, externe Dienste oder Abo-Zwang.
+Deutsch: [DE](#deutsch) | English: [EN](#english)
 
----
+## Deutsch
 
-## Funktionsübersicht
+Leichtgewichtiges WordPress-Plugin fuer DSGVO- und CCPA-konforme Cookie-Einwilligung mit granularen Kategorien, Script-Blocker und Consent-Logging.
 
-### 🍪 Cookie-Banner
+### Funktionen
 
-- **3 Positionen:** Oben, Unten, Mitte (Modal mit Overlay)
-- **2 Stile:** Leiste (volle Breite) oder Box (kompakt, rechts)
-- **Frei konfigurierbare Farben:** Primärfarbe, Textfarbe, Hintergrundfarbe (mit WordPress Color-Picker)
-- **Anpassbare Texte:** Überschrift und Beschreibungstext im Admin einstellbar
-- **Responsive Design:** Optimiert für Desktop, Tablet und Smartphone
-- **Animiert:** Sanfte Ein-/Ausblend-Animationen
+- Cookie-Banner mit 3 Positionen: oben, unten, modal (center)
+- 2 Designvarianten: bar oder box
+- Voll konfigurierbare Texte und Farben (WordPress Color Picker)
+- Granulare Kategorien (notwendig, statistik, marketing, externe medien)
+- Cookie-Details pro Kategorie (ausklappbare Tabelle im Banner)
+- Re-Consent per Version und/oder Zeitintervall (Tage)
+- Script- und iframe-Blocker mit Kategorie-Freigabe
+- Eigene Domain-Regeln fuer den Script-Blocker
+- Consent-Logging mit CSV-Export im Admin
+- JavaScript API und Consent-Event (`hpcc:consent`)
 
-### ✅ Consent-Optionen
+### Voraussetzungen
 
-Besucher haben drei klare Auswahlmöglichkeiten:
+- WordPress >= 6.0
+- PHP >= 8.0
+- HTTPS empfohlen (Secure-Cookies)
 
-| Button | Verhalten |
-|--------|-----------|
-| **Alle akzeptieren** | Aktiviert alle Cookie-Kategorien |
-| **Nur notwendige** | Aktiviert ausschließlich die Pflicht-Kategorie |
-| **Einstellungen** | Öffnet die granulare Kategorie-Auswahl mit Toggle-Schaltern |
+### Installation
 
-### 📂 Cookie-Kategorien
+#### Option A: ZIP-Upload im WordPress-Admin
 
-Vier vorkonfigurierte Kategorien mit individuellen Beschreibungen und Toggle-Schaltern:
+1. ZIP erstellen:
 
-| Kategorie | Standard | Beschreibung |
-|-----------|----------|--------------|
-| **Notwendig** | Immer aktiv (Pflicht) | Grundlegende Website-Funktionen, Session-Cookies |
-| **Statistik** | Opt-in | Analytics, anonyme Nutzungsdaten |
-| **Marketing** | Opt-in | Werbe-Tracking, Remarketing |
-| **Externe Medien** | Opt-in | YouTube, Vimeo, Social-Media-Embeds |
+```bash
+./build.sh
+```
 
-Jede Kategorie kann im Admin individuell benannt und beschrieben werden. Optionale Kategorien lassen sich auf Opt-out umstellen (standardmäßig aktiviert).
+2. In WordPress: `Plugins -> Installieren -> Plugin hochladen`
+3. Datei `hp-cookie-consent-<version>.zip` auswaehlen
+4. Plugin aktivieren
 
-### 📊 Consent-Logging (DSGVO-Nachweispflicht)
+#### Option B: Manuell per FTP/SSH
 
-Jede Einwilligung wird in einer eigenen Datenbanktabelle protokolliert:
+1. Ordner `hp-cookie-consent/` nach `wp-content/plugins/` kopieren
+2. Plugin im WordPress-Admin aktivieren
 
-- **Consent-ID** – Eindeutige Kennung pro Besucher
-- **IP-Hash** – SHA-256-Hash der IP-Adresse (mit WordPress-Salt, nicht rückverfolgbar)
-- **User-Agent-Hash** – SHA-256-Hash des Browsers
-- **Kategorien** – JSON der akzeptierten/abgelehnten Kategorien
-- **Zeitstempel** – Datum und Uhrzeit der Einwilligung
+### Konfiguration
 
-Das Consent-Log ist im Admin unter dem Tab „Consent-Log" einsehbar (paginiert, 20 Einträge pro Seite).
+Pfad: `Einstellungen -> Cookie Consent`
 
-### 🔗 Tracking-Integration
+- Allgemein: Banner-Text, Seiten-Links, Laufzeit, Re-Consent
+- Design: Position, Stil, Farben + Live-Vorschau
+- Kategorien: Kategorien konfigurieren + Cookie-Details pflegen
+- Integration: GTM/GA IDs + eigene Script-Blocker-Regeln
+- Consent-Log: Einwilligungen einsehen und als CSV exportieren
 
-| Dienst | Einstellung | Verhalten |
-|--------|-------------|-----------|
-| **Google Tag Manager** | GTM-ID eingeben | Wird erst nach Zustimmung zur Kategorie „Statistik" geladen |
-| **Google Analytics 4** | GA4-ID eingeben | Wird erst nach Zustimmung geladen, `anonymize_ip: true` ist aktiv |
-
-Die Tracking-Skripte werden sowohl beim initialen Seitenaufruf (wenn Consent-Cookie vorhanden) als auch dynamisch nach Zustimmung geladen.
-
-### 🔄 Revoke-Button
-
-Nach erteilter Einwilligung erscheint ein kleiner 🍪-Button (unten links), über den Besucher ihre Cookie-Einstellungen jederzeit ändern können.
-
-### 🔌 JavaScript-API
-
-Eigene Skripte können den Consent-Status abfragen:
+### JavaScript API
 
 ```javascript
-// Prüfen, ob eine Kategorie zugestimmt wurde
 if (HPCookieConsent.hasConsent('statistics')) {
-    // Statistik-Skript laden
+  // Statistik-Skripte laden
 }
 
-// Aktuellen Consent abrufen (Objekt oder null)
-var consent = HPCookieConsent.getConsent();
-// → { necessary: true, statistics: true, marketing: false, external: false }
-
-// Banner programmatisch öffnen
+const consent = HPCookieConsent.getConsent();
 HPCookieConsent.showBanner();
-
-// Direkt die Einstellungen öffnen
 HPCookieConsent.showSettings();
 ```
 
-### 📡 Events & DataLayer
-
-Bei jeder Consent-Änderung wird ein Custom Event ausgelöst:
+### Events
 
 ```javascript
-document.addEventListener('hpcc:consent', function(e) {
-    console.log('Consent geändert:', e.detail);
+document.addEventListener('hpcc:consent', function (e) {
+  console.log(e.detail);
 });
 ```
 
-Zusätzlich wird ein DataLayer-Event für den Google Tag Manager gepusht:
+### Cookies
+
+- `hpcc_consent`: Consent-Daten inkl. Kategorien, Zeitstempel, Version
+- `hpcc_consent_id`: Eindeutige Consent-ID fuer Logging
+
+### Deinstallation
+
+Bei Deinstallation ueber WordPress werden:
+
+- Plugin-Optionen aus `wp_options` entfernt
+- Tabelle `${wp_prefix}hpcc_consent_log` geloescht
+
+### Projektstruktur
+
+```text
+hp-cookie-consent/
+├── hp-cookie-consent.php
+├── uninstall.php
+├── includes/
+│   ├── class-activator.php
+│   ├── class-admin.php
+│   ├── class-consent-logger.php
+│   ├── class-frontend.php
+│   └── class-script-blocker.php
+├── admin/
+│   ├── css/admin.css
+│   └── js/admin.js
+└── public/
+    ├── css/frontend.css
+    └── js/frontend.js
+```
+
+---
+
+## English
+
+Lightweight WordPress plugin for GDPR/CCPA-compliant cookie consent with granular categories, script blocking, and consent logging.
+
+### Features
+
+- Cookie banner with 3 positions: top, bottom, center modal
+- 2 layout styles: bar or box
+- Fully configurable copy and colors (WordPress color picker)
+- Granular categories (necessary, statistics, marketing, external media)
+- Per-category cookie details (expandable table in banner)
+- Re-consent by version and/or time window (days)
+- Script and iframe blocker with category-based unblocking
+- Custom domain-to-category rules for script blocking
+- Consent logging with CSV export in admin
+- JavaScript API and consent change event (`hpcc:consent`)
+
+### Requirements
+
+- WordPress >= 6.0
+- PHP >= 8.0
+- HTTPS recommended (secure cookies)
+
+### Installation
+
+#### Option A: Upload ZIP in WordPress Admin
+
+1. Build package:
+
+```bash
+./build.sh
+```
+
+2. In WordPress: `Plugins -> Add New -> Upload Plugin`
+3. Select `hp-cookie-consent-<version>.zip`
+4. Activate plugin
+
+#### Option B: Manual (FTP/SSH)
+
+1. Copy `hp-cookie-consent/` into `wp-content/plugins/`
+2. Activate plugin in WordPress admin
+
+### Configuration
+
+Path: `Settings -> Cookie Consent`
+
+- General: banner text, legal links, cookie lifetime, re-consent
+- Design: position, style, colors + live preview
+- Categories: category setup + cookie details
+- Integration: GTM/GA IDs + custom script-blocker rules
+- Consent Log: inspect consent entries and export CSV
+
+### JavaScript API
 
 ```javascript
-// Automatisch bei Consent-Änderung:
-// { event: 'hpcc_consent_update', hpcc_consent: { ... } }
+if (HPCookieConsent.hasConsent('statistics')) {
+  // Load analytics scripts
+}
+
+const consent = HPCookieConsent.getConsent();
+HPCookieConsent.showBanner();
+HPCookieConsent.showSettings();
 ```
 
-### 🔒 Sicherheit
+### Events
 
-- Alle Eingaben werden serverseitig sanitized (`sanitize_text_field`, `sanitize_textarea_field`)
-- Alle Ausgaben werden escaped (`esc_html`, `esc_attr`, `esc_url`, `esc_js`)
-- AJAX-Requests werden mit WordPress-Nonces abgesichert
-- Admin-Seiten prüfen `manage_options`-Capability
-- IP-Adressen werden nur als gesalzener SHA-256-Hash gespeichert
-- Cookies verwenden `SameSite=Lax` und `Secure`-Flags
-
-### 🧹 Saubere Deinstallation
-
-Bei Deinstallation über die WordPress-Admin-UI werden entfernt:
-- Alle Plugin-Optionen aus `wp_options`
-- Die Consent-Log-Datenbanktabelle
-
----
-
-## Systemvoraussetzungen
-
-- WordPress 6.0 oder höher
-- PHP 8.0 oder höher
-- HTTPS (für `Secure`-Cookie-Flag)
-
----
-
-## Installation
-
-### Option A: Upload über die WordPress-Admin-UI
-
-1. ZIP-Archiv erstellen (im Projektverzeichnis):
-   ```bash
-   ./build.sh
-   ```
-2. Im WordPress-Admin navigieren zu **Plugins → Installieren → Plugin hochladen**
-3. Die Datei `hp-cookie-consent-1.0.0.zip` auswählen und hochladen
-4. Plugin aktivieren
-
-### Option B: Manuell per FTP/SSH
-
-1. Den Ordner `hp-cookie-consent/` nach `wp-content/plugins/` kopieren
-2. Im WordPress-Admin unter **Plugins** das Plugin „HP Cookie Consent" aktivieren
-
-### Nach der Aktivierung
-
-1. Navigiere zu **Einstellungen → Cookie Consent**
-2. Konfiguriere die fünf Tabs:
-
-| Tab | Einstellungen |
-|-----|---------------|
-| **Allgemein** | Banner-Überschrift, Banner-Text, Datenschutz- und Impressum-Seite verknüpfen, Cookie-Laufzeit |
-| **Design** | Position (oben/unten/modal), Stil (Leiste/Box), Farben |
-| **Kategorien** | Bezeichnungen und Beschreibungen der vier Cookie-Kategorien anpassen |
-| **Integration** | Google Tag Manager ID und/oder Google Analytics 4 ID eintragen |
-| **Consent-Log** | Übersicht der protokollierten Einwilligungen (nur Ansicht) |
-
-3. Einstellungen speichern – das Banner ist sofort auf der Website aktiv.
-
----
-
-## Dateistruktur
-
+```javascript
+document.addEventListener('hpcc:consent', function (e) {
+  console.log(e.detail);
+});
 ```
+
+### Cookies
+
+- `hpcc_consent`: Consent payload including categories, timestamp, version
+- `hpcc_consent_id`: Unique consent identifier for logging
+
+### Uninstall
+
+When uninstalling via WordPress admin, the plugin removes:
+
+- Plugin options from `wp_options`
+- `${wp_prefix}hpcc_consent_log` table
+
+### Project Structure
+
+```text
 hp-cookie-consent/
-├── hp-cookie-consent.php          # Hauptdatei mit Plugin-Header
-├── uninstall.php                  # Aufräumen bei Deinstallation
+├── hp-cookie-consent.php
+├── uninstall.php
 ├── includes/
-│   ├── class-activator.php        # DB-Tabelle & Standardwerte bei Aktivierung
-│   ├── class-admin.php            # Einstellungsseite mit 5 Tabs
-│   ├── class-consent-logger.php   # AJAX-Endpoint für Consent-Protokollierung
-│   └── class-frontend.php         # Banner-Rendering & Script-Ausgabe
+│   ├── class-activator.php
+│   ├── class-admin.php
+│   ├── class-consent-logger.php
+│   ├── class-frontend.php
+│   └── class-script-blocker.php
 ├── admin/
-│   ├── css/admin.css              # Admin-Styles (Tabs, Kategorie-Karten)
-│   └── js/admin.js                # Admin-JS (Tabs, Color-Picker)
+│   ├── css/admin.css
+│   └── js/admin.js
 └── public/
-    ├── css/frontend.css            # Banner-Styles (responsive, animiert)
-    └── js/frontend.js              # Banner-Logik, Consent-Management, API
+    ├── css/frontend.css
+    └── js/frontend.js
 ```
 
----
+## License
 
-## Cookies
-
-Das Plugin setzt genau zwei Cookies:
-
-| Cookie | Inhalt | Laufzeit |
-|--------|--------|----------|
-| `hpcc_consent` | JSON-Objekt mit den akzeptierten Kategorien | Konfigurierbar (Standard: 365 Tage) |
-| `hpcc_consent_id` | Eindeutige ID zur Zuordnung im Consent-Log | Konfigurierbar (Standard: 365 Tage) |
-
----
-
-## Lizenz
-
-GPL v2 or later – [Lizenztext](https://www.gnu.org/licenses/gpl-2.0.html)
+MIT License. See `/Users/henryprivat/Documents/gitrepos/hp-cookie-consent/LICENSE`.
