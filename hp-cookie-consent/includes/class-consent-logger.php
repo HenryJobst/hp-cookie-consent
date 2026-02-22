@@ -33,7 +33,7 @@ class HPCC_Consent_Logger {
         $ip_raw = sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR'] ?? ''));
         $ua_raw = sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT'] ?? ''));
 
-        $wpdb->insert(
+        $inserted = $wpdb->insert(
             $table_name,
             [
                 'consent_id'      => $consent_id,
@@ -44,6 +44,10 @@ class HPCC_Consent_Logger {
             ],
             ['%s', '%s', '%s', '%s', '%d']
         );
+
+        if ($inserted === false) {
+            wp_send_json_error(__('Consent konnte nicht gespeichert werden.', 'hp-cookie-consent'), 500);
+        }
 
         wp_send_json_success();
     }

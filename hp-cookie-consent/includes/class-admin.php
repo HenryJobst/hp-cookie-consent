@@ -114,11 +114,17 @@ class HPCC_Admin {
             'sanitize_callback' => function ($input): array {
                 if (!is_array($input)) return [];
                 $sanitized = [];
+                $categories = get_option('hpcc_categories', []);
+                $allowed_categories = array_keys(is_array($categories) ? $categories : []);
                 foreach ($input as $rule) {
                     if (empty($rule['domain'])) continue;
+                    $category = sanitize_key($rule['category'] ?? 'statistics');
+                    if (!in_array($category, $allowed_categories, true)) {
+                        continue;
+                    }
                     $sanitized[] = [
                         'domain'   => sanitize_text_field($rule['domain'] ?? ''),
-                        'category' => sanitize_key($rule['category'] ?? 'statistics'),
+                        'category' => $category,
                     ];
                 }
                 return $sanitized;

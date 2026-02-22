@@ -27,10 +27,12 @@ class HPCC_Script_Blocker {
      * Domains die niemals blockiert werden (eigene Site, WordPress-Core, CDNs für Basis-Funktionalität)
      */
     private array $whitelist = [];
+    private array $consented_categories = [];
 
     public function init(): void {
         $this->build_domain_map();
         $this->build_whitelist();
+        $this->consented_categories = $this->get_consented_categories();
 
         if (!$this->is_consent_given_for_all() && !is_admin() && !wp_doing_ajax() && !wp_doing_cron()) {
             add_action('template_redirect', [$this, 'start_output_buffer'], 0);
@@ -138,31 +140,41 @@ class HPCC_Script_Blocker {
      * Prüft ob bereits für alle Kategorien Consent vorliegt (Cookie serverseitig lesen).
      */
     private function is_consent_given_for_all(): bool {
-        if (empty($_COOKIE['hpcc_consent'])) {
+        if (empty($this->consented_categories)) {
             return false;
-        }
-
-        $consent = json_decode(wp_unslash($_COOKIE['hpcc_consent']), true);
-        if (!is_array($consent)) {
-            return false;
-        }
-
-        // Support both formats:
-        // legacy: {"statistics":true,...}
-        // current: {"categories":{"statistics":true,...},"timestamp":...,"version":"..."}
-        $categories_consent = $consent;
-        if (isset($consent['categories']) && is_array($consent['categories'])) {
-            $categories_consent = $consent['categories'];
         }
 
         $categories = get_option('hpcc_categories', []);
         foreach ($categories as $key => $cat) {
-            if (empty($cat['required']) && empty($categories_consent[$key])) {
+            if (empty($cat['required']) && empty($this->consented_categories[$key])) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    /**
+     * Liest die aktuell zugestimmten Kategorien aus dem Consent-Cookie.
+     */
+    private function get_consented_categories(): array {
+        if (empty($_COOKIE['hpcc_consent'])) {
+            return [];
+        }
+
+        $consent = json_decode(wp_unslash($_COOKIE['hpcc_consent']), true);
+        if (!is_array($consent)) {
+            return [];
+        }
+
+        // Support both formats:
+        // legacy: {"statistics":true,...}
+        // current: {"categories":{"statistics":true,...},"timestamp":...,"version":"..."}
+        if (isset($consent['categories']) && is_array($consent['categories'])) {
+            return $consent['categories'];
+        }
+
+        return $consent;
     }
 
     /**
@@ -203,7 +215,7 @@ class HPCC_Script_Blocker {
                 }
 
                 // Eigenes Plugin-Skript nicht blockieren
-                if (strpos($attributes, 'hpcc-frontend') !== false || strpos($attributes, 'hpcc') !== false) {
+                if (strpos($attributes, 'id="hpcc-frontend-js"') !== false || strpos($attributes, "id='hpcc-frontend-js'") !== false) {
                     return $matches[0];
                 }
 
@@ -228,6 +240,11 @@ class HPCC_Script_Blocker {
                 // Kategorie ermitteln
                 $category = $this->get_category($check_string);
                 if (!$category) {
+                    return $matches[0];
+                }
+
+                // Bereits zugestimmte Kategorie nicht blockieren
+                if (!empty($this->consented_categories[$category])) {
                     return $matches[0];
                 }
 
@@ -280,6 +297,11 @@ class HPCC_Script_Blocker {
                 // Kategorie ermitteln
                 $category = $this->get_category($src);
                 if (!$category) {
+                    return $matches[0];
+                }
+
+                // Bereits zugestimmte Kategorie nicht blockieren
+                if (!empty($this->consented_categories[$category])) {
                     return $matches[0];
                 }
 
